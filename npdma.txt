@@ -1,0 +1,110 @@
+Configuration	npdma
+STM32CubeMX 	5.4.0
+Date	02/02/2020
+MCU	STM32F103C8Tx
+
+
+
+PERIPHERALS	MODES	FUNCTIONS	PINS
+I2C2	I2C	I2C2_SCL	PB10
+I2C2	I2C	I2C2_SDA	PB11
+RCC	Crystal/Ceramic Resonator	RCC_OSC_IN	PD0-OSC_IN
+RCC	Crystal/Ceramic Resonator	RCC_OSC_OUT	PD1-OSC_OUT
+RCC	Crystal/Ceramic Resonator	RCC_OSC32_IN	PC14-OSC32_IN
+RCC	Crystal/Ceramic Resonator	RCC_OSC32_OUT	PC15-OSC32_OUT
+RTC	Activate Clock Source	RTC_VS_RTC_Activate	VP_RTC_VS_RTC_Activate
+RTC	No RTC Output	RTC_No_RTC_Output	VP_RTC_No_RTC_Output
+SYS	No Debug	SYS_VS_ND	VP_SYS_VS_ND
+SYS	SysTick	SYS_VS_Systick	VP_SYS_VS_Systick
+TIM2	Internal Clock	TIM2_VS_ClockSourceINT	VP_TIM2_VS_ClockSourceINT
+TIM2	Output Compare No Output	TIM2_VS_no_output1	VP_TIM2_VS_no_output1
+TIM2	Output Compare No Output	TIM2_VS_no_output2	VP_TIM2_VS_no_output2
+TIM4	Input Capture direct mode	TIM4_CH1	PB6
+TIM4	Input Capture direct mode	TIM4_CH2	PB7
+USART1	Asynchronous	USART1_RX	PA10
+USART1	Asynchronous	USART1_TX	PA9
+
+
+
+Pin Nb	PINs	FUNCTIONs	LABELs
+2	PC13-TAMPER-RTC	GPIO_Input	
+3	PC14-OSC32_IN	RCC_OSC32_IN	
+4	PC15-OSC32_OUT	RCC_OSC32_OUT	
+5	PD0-OSC_IN	RCC_OSC_IN	
+6	PD1-OSC_OUT	RCC_OSC_OUT	
+21	PB10	I2C2_SCL	
+22	PB11	I2C2_SDA	
+30	PA9	USART1_TX	
+31	PA10	USART1_RX	
+38	PA15	GPIO_Input	
+39	PB3	GPIO_Input	
+40	PB4	GPIO_Input	
+41	PB5	GPIO_Output	
+42	PB6	TIM4_CH1	
+43	PB7	TIM4_CH2	
+45	PB8	GPIO_Input	
+PERIPHERALS	MODES	FUNCTIONS	PINS
+I2C2	I2C	I2C2_SCL	PB10
+I2C2	I2C	I2C2_SDA	PB11
+RCC	Crystal/Ceramic Resonator	RCC_OSC_IN	PD0-OSC_IN
+RCC	Crystal/Ceramic Resonator	RCC_OSC_OUT	PD1-OSC_OUT
+RCC	Crystal/Ceramic Resonator	RCC_OSC32_IN	PC14-OSC32_IN
+RCC	Crystal/Ceramic Resonator	RCC_OSC32_OUT	PC15-OSC32_OUT
+RTC	Activate Clock Source	RTC_VS_RTC_Activate	VP_RTC_VS_RTC_Activate
+RTC	No RTC Output	RTC_No_RTC_Output	VP_RTC_No_RTC_Output
+SYS	No Debug	SYS_VS_ND	VP_SYS_VS_ND
+SYS	SysTick	SYS_VS_Systick	VP_SYS_VS_Systick
+TIM2	Internal Clock	TIM2_VS_ClockSourceINT	VP_TIM2_VS_ClockSourceINT
+TIM2	Output Compare No Output	TIM2_VS_no_output1	VP_TIM2_VS_no_output1
+TIM2	Output Compare No Output	TIM2_VS_no_output2	VP_TIM2_VS_no_output2
+TIM4	Input Capture direct mode	TIM4_CH1	PB6
+TIM4	Input Capture direct mode	TIM4_CH2	PB7
+USART1	Asynchronous	USART1_RX	PA10
+USART1	Asynchronous	USART1_TX	PA9
+
+
+
+Pin Nb	PINs	FUNCTIONs	LABELs
+2	PC13-TAMPER-RTC	GPIO_Input	
+3	PC14-OSC32_IN	RCC_OSC32_IN	
+4	PC15-OSC32_OUT	RCC_OSC32_OUT	
+5	PD0-OSC_IN	RCC_OSC_IN	
+6	PD1-OSC_OUT	RCC_OSC_OUT	
+21	PB10	I2C2_SCL	
+22	PB11	I2C2_SDA	
+30	PA9	USART1_TX	
+31	PA10	USART1_RX	
+38	PA15	GPIO_Input	
+39	PB3	GPIO_Input	
+40	PB4	GPIO_Input	
+41	PB5	GPIO_Output	
+42	PB6	TIM4_CH1	
+43	PB7	TIM4_CH2	
+45	PB8	GPIO_Input	
+
+
+
+SOFTWARE PROJECT
+
+Project Settings : 
+Project Name : npdma
+Project Folder : /home/steve/stm/npdma/npdma
+Toolchain / IDE : Makefile
+Firmware Package Name and Version : STM32Cube FW_F1 V1.7.0
+
+
+Code Generation Settings : 
+STM32Cube MCU packages and embedded software packs : Copy all used libraries into the project folder
+Generate peripheral initialization as a pair of '.c/.h' files per peripheral : No
+Backup previously generated files when re-generating : No
+Delete previously generated files when not re-generated : Yes
+Set all free pins as analog (to optimize the power consumption) : No
+
+
+Toolchains Settings : 
+Compiler Optimizations : 
+
+
+
+
+
