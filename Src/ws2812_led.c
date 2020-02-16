@@ -1,6 +1,5 @@
 #include <string.h>
 #include "ws2812_led.h"
-#include "util.h"
 
 TIM_HandleTypeDef htimer2;
 DMA_HandleTypeDef hdma_tim2_update;
@@ -374,8 +373,6 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
 	__HAL_DMA_DISABLE(&hdma_tim2_update);
 	__HAL_DMA_DISABLE(&hdma_tim2_pwm_ch1);
 	__HAL_DMA_DISABLE(&hdma_tim2_pwm_ch2);
-
-    uart_printf("Complete: cycles = %d\n", cycles);
 }
 
 void ws2812_init()

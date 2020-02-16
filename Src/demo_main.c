@@ -1,5 +1,4 @@
 #include <string.h>
-#include "util.h"
 #include "ws2812_led.h"
 
 /* Framebuffers don't have to be of fixed length.
@@ -56,11 +55,7 @@ int demo_main(void)
         led_channels[i].length = FRAMEBUFFER_SIZE * sizeof(struct pixel);
     }
 
-    uart_printf("Init\n");
-
     ws2812_init();
-
-    uart_printf("Start\n");
 
     while(1) {
         /* Draw a pretty (but different) pattern for each channel.
