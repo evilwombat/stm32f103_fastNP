@@ -318,11 +318,8 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
      * and just count out ~225 update intervals
      */
     for (i = 0; i < 225; i++) {
-        /* Wait for timer update event flag */
-        while (! (TIM2->SR & TIM_SR_UIF));
-
-        /* And clear the timer update event flag */
-        TIM2->SR &= ~TIM_SR_UIF;
+        while (!__HAL_TIM_GET_FLAG(&htimer2, TIM_FLAG_UPDATE));
+        __HAL_TIM_CLEAR_FLAG(&htimer2, TIM_FLAG_UPDATE);
     }
 
     /* Now that we're done with the RESET pulse, turn off the timer and prepare the DMA stuff */
@@ -333,7 +330,7 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
      * before the CH1 / CH2 match events. We want this so that the UPDATE event gives us a clean
      * starting "high" level for the first edge of the first bit.
      */
-	TIM2->CNT = TIM2->ARR - 10;
+    __HAL_TIM_SET_COUNTER(&htimer2, __HAL_TIM_GET_AUTORELOAD(&htimer2) - 10);
 
     /* Clear the DMA transfer status flags for the DMA we're using */
     DMA1->IFCR = (DMA_IFCR_CTCIF5 | DMA_IFCR_CHTIF5);
