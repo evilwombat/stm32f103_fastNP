@@ -23,6 +23,13 @@ struct led_channel_info {
 /* How many channels (strips) of LEDs we want to control. This must not exceed 16. */
 #define WS2812_NUM_CHANNELS     16
 
+/* If all your channel framebuffers are the same size (ie, if each channel has the same number
+ * of pixels), you can set this to 1 to bypass some error checking. This will speed things up
+ * substantially, potentially allowing you to slow down your CPU and still meet the WS2812
+ * timing requirements. "If unsure, set this to 0".
+ */
+#define WS212_ALL_CHANNELS_SAME_LENGTH  0
+
 /*
  * We support up to 16 LED channels (that is, up to 16 distinct strips of LEDs.
  * Channels must be used sequentially, but their GPIOs do not have to be sequential.

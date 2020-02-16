@@ -185,7 +185,11 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
 
 static inline uint8_t get_channel_byte(const struct led_channel_info *channel, int pos)
 {
-    if (pos < channel->length)
+    /* If all channels are the same length, we can skip the 'pos' range check, and speed up our
+     * inner loop *substantially*
+     */
+
+    if (WS212_ALL_CHANNELS_SAME_LENGTH || (pos < channel->length))
         return channel->framebuffer[pos] ^ 0xff;
 
     return 0xff;
@@ -286,7 +290,14 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
     }
 
     /* Give DMA time to finish out the current buffer, before turning it off, plus an extra blank pixel (24 bits) */
-    max_length += DMA_BUFFER_SIZE / 8 + 3;
+    max_length += DMA_BUFFER_SIZE / 8;
+
+    /* If per-channel range checks are enabled, add an extra "dummy" pixel to the end of our data stream.
+     * This must only be done with range checks enabled, or we'll walk off the end of our framebuffers.
+     */
+#if !WS212_ALL_CHANNELS_SAME_LENGTH
+    max_length += 3;
+#endif
 
     /* We're going to use our standard timer to generate the RESET pulse, so for now just run the
      * timer without any DMA.
