@@ -38,16 +38,16 @@ void make_pretty_colors(struct pixel *framebuffer, int channel, int state)
     int red_offset, green_offset, blue_offset, i;
 
     red_offset = 0;
-    green_offset = 64 * ((channel) & 0x03);
-    blue_offset = 64 * ((channel >> 2) & 0x03);
+    green_offset = (FRAMEBUFFER_SIZE / 4) * ((channel) & 0x03);
+    blue_offset = (FRAMEBUFFER_SIZE / 4) * ((channel >> 2) & 0x03);
 
     /* Just generate a different-looking psychedelic-looking pattern for each channel, to
      * test/prove that each channel is receiving a unique pattern
      */
-    for (i = 0; i < 128; i++) {
-        framebuffer[(i + red_offset + state) & 0xff].r = i;
-        framebuffer[(i + green_offset + state) & 0xff].g = i;
-        framebuffer[(i + blue_offset + state) & 0xff].b = i;
+    for (i = 0; i < FRAMEBUFFER_SIZE / 2; i++) {
+        framebuffer[(i + red_offset + state) % FRAMEBUFFER_SIZE].r = i;
+        framebuffer[(i + green_offset + state) % FRAMEBUFFER_SIZE].g = i;
+        framebuffer[(i + blue_offset + state) % FRAMEBUFFER_SIZE].b = i;
     }
 }
 
