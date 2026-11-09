@@ -33,16 +33,16 @@ struct pixel {
     uint8_t b;
 };
 
-void make_pretty_colors(struct pixel *framebuffer, int channel, int state)
+void make_pretty_colors(struct pixel *framebuffer, int strip, int state)
 {
     int red_offset, green_offset, blue_offset, i;
 
     red_offset = 0;
-    green_offset = (FRAMEBUFFER_SIZE / 4) * ((channel) & 0x03);
-    blue_offset = (FRAMEBUFFER_SIZE / 4) * ((channel >> 2) & 0x03);
+    green_offset = (FRAMEBUFFER_SIZE / 4) * ((strip) & 0x03);
+    blue_offset = (FRAMEBUFFER_SIZE / 4) * ((strip >> 2) & 0x03);
 
-    /* Just generate a different-looking psychedelic-looking pattern for each channel, to
-     * test/prove that each channel is receiving a unique pattern
+    /* Just generate a different-looking psychedelic-looking pattern for each strip, to
+     * test/prove that each strip is receiving a unique pattern
      */
     for (i = 0; i < FRAMEBUFFER_SIZE / 2; i++) {
         framebuffer[(i + red_offset + state) % FRAMEBUFFER_SIZE].r = i;
@@ -51,26 +51,26 @@ void make_pretty_colors(struct pixel *framebuffer, int channel, int state)
     }
 }
 
-struct pixel channel_framebuffers[WS2812_NUM_CHANNELS][FRAMEBUFFER_SIZE];
+struct pixel framebuffers[WS2812_NUM_STRIPS][FRAMEBUFFER_SIZE];
 
 int demo_main(void)
 {
-    struct led_channel_info led_channels[WS2812_NUM_CHANNELS];
+    struct led_strip_info led_strips[WS2812_NUM_STRIPS];
 
-    int ch, animation_state = 0;
+    int strip, animation_state = 0;
 
     __enable_irq();
     HAL_Delay(200);
 
-    /* Populate the led_channel_info structure. Set the framebuffer pointer for each channel,
+    /* Populate the led_strip_info structure. Set the framebuffer pointer for each channel,
      * and the length of the framebuffer for that channel. Lengths are in bytes, NOT in pixels.
      * We allow some framebuffers to be shorter than others (ie, if your LED strips are of
      * unequal lengths) without wasting memory. Removing the length check from ws2812_refresh()
      * will improve performance, but we are within spec as-is.
      */
-    for (int i = 0; i < WS2812_NUM_CHANNELS; i++) {
-        led_channels[i].framebuffer = channel_framebuffers[i];
-        led_channels[i].length = FRAMEBUFFER_SIZE * sizeof(struct pixel);
+    for (int i = 0; i < WS2812_NUM_STRIPS; i++) {
+        led_strips[i].framebuffer = framebuffers[i];
+        led_strips[i].length = FRAMEBUFFER_SIZE * sizeof(struct pixel);
     }
 
     ws2812_init();
@@ -80,13 +80,13 @@ int demo_main(void)
          * We can trivially send the same framebuffer to each channel, but we won't do that, just
          * to prove that we can truly refresh 16 unique framebuffers at once.
          */
-        for (ch = 0; ch < WS2812_NUM_CHANNELS; ch++)
-            make_pretty_colors(channel_framebuffers[ch], ch, animation_state);
+        for (strip = 0; strip < WS2812_NUM_STRIPS; strip++)
+            make_pretty_colors(framebuffers[strip], strip, animation_state);
 
         animation_state++;
 
         __disable_irq();
-        ws2812_refresh(led_channels, GPIOB);
+        ws2812_refresh(led_strips, GPIOB);
         __enable_irq();
     }
 

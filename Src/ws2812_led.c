@@ -274,12 +274,12 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
  */
 #define HANDLE_CHANNEL(ch_num, gpio_num)                                \
         ch_val = 0xffffffff;                                            \
-        if (pos < channels[ch_num].length) {                            \
-            ch_val = channels[ch_num].framebuffer[pos] ^ 0xffffffff;    \
+        if (pos < strips[ch_num].length) {                              \
+            ch_val = strips[ch_num].framebuffer[pos] ^ 0xffffffff;      \
         }                                                               \
         UNPACK_CHANNEL(gpio_num);
 
-static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const struct led_channel_info* channels)
+static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const struct led_strip_info* strips)
 {
     // Use 'int' (instead of int16) here, or GCC will waste a lot of instructions on silly sign
     // extension things, which we don't even need here.
@@ -344,7 +344,7 @@ static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const
     dest[7] = cur7;
 }
 
-void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_bank)
+void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank)
 {
     int i;
     int pos = 0;
@@ -359,7 +359,7 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
      * half has already been transferred.
      */
     for (i = 0; i < DMA_BUFFER_SIZE; i+= 8) {
-        fill_dma_buffer(dma_buffer + i, pos, channels);
+        fill_dma_buffer(dma_buffer + i, pos, strips);
         pos++;
     }
 
@@ -367,11 +367,11 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
      * reset bit masks. While we're at it, find the length of the longest framebuffer, in case
      * they're of unequal length. This determines how many total bits we will clock out.
      */
-    for (i = 0; i < WS2812_NUM_CHANNELS; i++) {
-        if (channels[i].length > max_length)
-            max_length = channels[i].length;
+    for (i = 0; i < WS2812_NUM_STRIPS; i++) {
+        if (strips[i].length > max_length)
+            max_length = strips[i].length;
 
-        if (channels[i].length != 0)
+        if (strips[i].length != 0)
             ws2812_gpio_set_bits |= (1 << ws2812_channel_gpio_map[i]);
     }
 
@@ -420,7 +420,7 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
          * Each 16-bit word in the DMA buffer contains to one bit of the output byte (from each channel)
          */
         for (i = 0; i < DMA_BUFFER_FILL_SIZE; i+= 8) {
-            fill_dma_buffer(dest + i, pos, channels);
+            fill_dma_buffer(dest + i, pos, strips);
             pos++;
         }
 

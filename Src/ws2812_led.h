@@ -28,7 +28,7 @@
  * Provide a pointer to your pixel data, and a length (in bytes, not in pixels)
  * Setting length=0 disables the channel.
  */
-struct led_channel_info {
+struct led_strip_info {
     const uint8_t *framebuffer;
     int length;
 };
@@ -51,7 +51,7 @@ struct led_channel_info {
 #define WS2812_TIMER_PWM_CH_B_TIME (((WS2812_TIMER_FREQ_HZ / 1000) *  80) / 100000)
 
 /* How many channels (strips) of LEDs we want to control. This must not exceed 16. */
-#define WS2812_NUM_CHANNELS     16
+#define WS2812_NUM_STRIPS     16
 
 /*
  * We support up to 16 LED channels (that is, up to 16 distinct strips of LEDs.
@@ -83,4 +83,4 @@ struct led_channel_info {
 /* (These need to be constants at compile-time because they are used in inline ASM) */
 
 void ws2812_init();
-void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_bank);
+void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank);
