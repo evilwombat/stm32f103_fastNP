@@ -27,12 +27,17 @@ DMA_HandleTypeDef hdma_tim_update;
 DMA_HandleTypeDef hdma_tim_pwm_ch_a;
 DMA_HandleTypeDef hdma_tim_pwm_ch_b;
 
-/* Generally you should not need to mess with these */
-#define DMA_BUFFER_SIZE         16
-#define DMA_BUFFER_FILL_SIZE    ((DMA_BUFFER_SIZE) / 2)
+// Generally you should not need to mess with these
+// Size is expressed in 32bit words, but DMA will transfter one 16bit word at a time
+#define DMA_BUFFER_SIZE_WORDS   8
+#define DMA_BUFFER_FILL_SIZE    ((DMA_BUFFER_SIZE_WORDS) / 2)
 
 static uint16_t ws2812_gpio_set_bits = 0;
-static uint16_t dma_buffer[DMA_BUFFER_SIZE];
+
+// Allocate the buffer as a 32bit bype, even though DMA will be transferring 16 bits at
+// a time. This allows the bit repacking code to confidently operate using 32bit store
+// operations, without worrying about alignment. (Does that even matter on an F1?)
+static uint32_t dma_buffer[DMA_BUFFER_SIZE_WORDS];
 
 /*
  * Convenience array for GPIO setup code.
@@ -211,9 +216,10 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
     HAL_DMA_Init(&hdma_tim_pwm_ch_a);
     HAL_DMA_Init(&hdma_tim_pwm_ch_b);
 
-    HAL_DMA_Start(&hdma_tim_update, (uint32_t)&ws2812_gpio_set_bits, (uint32_t)&gpio_bank->BSRR, DMA_BUFFER_SIZE);
-    HAL_DMA_Start(&hdma_tim_pwm_ch_a, (uint32_t)dma_buffer, (uint32_t) &gpio_bank->BRR, DMA_BUFFER_SIZE);
-    HAL_DMA_Start(&hdma_tim_pwm_ch_b, (uint32_t)&ws2812_gpio_set_bits, (uint32_t)&gpio_bank->BRR, DMA_BUFFER_SIZE);
+    // Multiply size by 2 because DMA operates on half-words
+    HAL_DMA_Start(&hdma_tim_update, (uint32_t)&ws2812_gpio_set_bits, (uint32_t)&gpio_bank->BSRR, DMA_BUFFER_SIZE_WORDS * 2);
+    HAL_DMA_Start(&hdma_tim_pwm_ch_a, (uint32_t)dma_buffer, (uint32_t) &gpio_bank->BRR, DMA_BUFFER_SIZE_WORDS * 2);
+    HAL_DMA_Start(&hdma_tim_pwm_ch_b, (uint32_t)&ws2812_gpio_set_bits, (uint32_t)&gpio_bank->BRR, DMA_BUFFER_SIZE_WORDS * 2);
 
 	__HAL_TIM_ENABLE_DMA(&htimer, TIM_DMA_UPDATE);
 	__HAL_TIM_ENABLE_DMA(&htimer, TIM_DMA_CC_A);
@@ -226,49 +232,43 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
  * the given GPIO number. Later, cur0-cur7 will be DMAed directly to a register within our GPIO
  * bank.
  */
-#define UNPACK_CHANNEL(gpio_num)                    \
-    asm volatile (                                  \
-    "ubfx   r0, %[ch_val], #7, #1 \n"               \
-    "bfi    %[cur0], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #6, #1 \n"               \
-    "bfi    %[cur1], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #5, #1 \n"               \
-    "bfi    %[cur2], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #4, #1 \n"               \
-    "bfi    %[cur3], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #3, #1 \n"               \
-    "bfi    %[cur4], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #2, #1 \n"               \
-    "bfi    %[cur5], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #1, #1 \n"               \
-    "bfi    %[cur6], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    "ubfx   r0, %[ch_val], #0, #1 \n"               \
-    "bfi    %[cur7], r0,   #" #gpio_num ", 1  \n"   \
-                                                    \
-    : [cur0]"+r" (cur0),                            \
-        [cur1]"+r" (cur1),                          \
-        [cur2]"+r" (cur2),                          \
-        [cur3]"+r" (cur3),                          \
-        [cur4]"+r" (cur4),                          \
-        [cur5]"+r" (cur5),                          \
-        [cur6]"+r" (cur6),                          \
-        [cur7]"+r" (cur7)                           \
-    : [ch_val]"r" (ch_val)                          \
+#define UNPACK_CHANNEL(gpio_num)                         \
+    asm volatile (                                       \
+    "ubfx   r0, %[ch_val], #7, #1 \n"                    \
+    "bfi    %[cur0], r0,   #" #gpio_num " +  0, 1  \n"   \
+                                                         \
+    "ubfx   r0, %[ch_val], #6, #1 \n"                    \
+    "bfi    %[cur0], r0,   #" #gpio_num " + 16, 1  \n"   \
+                                                         \
+    "ubfx   r0, %[ch_val], #5, #1 \n"                    \
+    "bfi    %[cur1], r0,   #" #gpio_num " +  0, 1  \n"   \
+                                                         \
+    "ubfx   r0, %[ch_val], #4, #1 \n"                    \
+    "bfi    %[cur1], r0,   #" #gpio_num " + 16, 1  \n"   \
+                                                         \
+    "ubfx   r0, %[ch_val], #3, #1 \n"                    \
+    "bfi    %[cur2], r0,   #" #gpio_num " +  0, 1  \n"   \
+                                                         \
+    "ubfx   r0, %[ch_val], #2, #1 \n"                    \
+    "bfi    %[cur2], r0,   #" #gpio_num " + 16, 1  \n"   \
+                                                         \
+    "ubfx   r0, %[ch_val], #1, #1 \n"                    \
+    "bfi    %[cur3], r0,   #" #gpio_num " + 0, 1  \n"    \
+                                                         \
+    "ubfx   r0, %[ch_val], #0, #1 \n"                    \
+    "bfi    %[cur3], r0,   #" #gpio_num " + 16, 1  \n"   \
+                                                         \
+    : [cur0]"+*r" (cur0),                                \
+        [cur1]"+&r" (cur1),                              \
+        [cur2]"+&r" (cur2),                              \
+        [cur3]"+&r" (cur3)                               \
+    : [ch_val]"r" (ch_val)                               \
     : "r0", "cc");  /* r0 is a temp variable */
 
 
 /*
  * Unpack the bits for one byte of one channel, and pack them into the bit positions of
- * the cur0 - cur7 variables, corresponding to the GPIO number for that channel.
- * The 'if' statement will be optimized away by the compiler, depending on how many channels
- * are actually defined.
+ * the cur0 - cur3 variables, corresponding to the GPIO number for that channel.
  * We only care about the lower 8 bits, but it's more efficient to flip all the bits rather
  * than just trying to XOR in 0xff.
  */
@@ -279,17 +279,27 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
         }                                                               \
         UNPACK_CHANNEL(gpio_num);
 
-static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const struct led_strip_info* strips, const int num_strips)
+static void __always_inline fill_dma_buffer(uint32_t *dest, const int pos, const struct led_strip_info* strips, const int num_strips)
 {
-    // Use 'int' (instead of int16) here, or GCC will waste a lot of instructions on silly sign
-    // extension things, which we don't even need here.
-    register unsigned int cur0 = 0, cur1 = 0, cur2 = 0, cur3 = 0, cur4 = 0, cur5 = 0, cur6 = 0, cur7 = 0;
+    /*
+     * Each register holds two 16bit words to be written to the DMA buffer.
+     * The register-saving trick only works because we support a maximum number of 16
+     * strips, meaning we can store two bits' worth of strip data per output register.
+     * If we has 32bit GPIO output registers, we'd need eight accumulator registers here,
+     * leaving fewer registers for GCC to use.
+     */
 
-    /* cur0 - cur7 represent eight successive words to be output to the DMA buffer. Each value
-     * holds all the nth bits from across each channel. That is, when the unpacking is done,
-     * cur0 holds all the bit0 of the current byte from every channel
-     * cur1 holds all the bit1 of the current byte from every channel
-     * cur2 holds all the bit2 of the current byte from every channel
+    register unsigned int cur0 = 0, cur1 = 0, cur2 = 0, cur3 = 0;
+
+    /* cur0 - cur3 represent eight successive half-words to be output to the DMA buffer, with
+     * the lower 16bits holding one output from each channel, and the upper 16bits holding the
+     * next bit. Since we're controlling a maximum of 16 strips at a time, we can pack two bits'
+     * worth of data into a single 32bit register. This leaves the maximum number of registers
+     * available to GCC, for all the glue logic.
+     * cur0 holds all the bit0 and bit1 of the current byte from every channel
+     * cur1 holds all the bit2 and bit3 of the current byte from every channel
+     * cur2 holds all the bit4 and bit5 of the current byte from every channel
+     * cur3 holds all the bit6 and bit7 of the current byte from every channel
      * etc
      * (in reality they're bit7 through bit0, depending on which direction you're looking)
      *
@@ -335,16 +345,13 @@ static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const
 
     /*
      * Store the repacked bits in our DMA buffer, ready to be sent to the GPIO bit-reset register.
-     * cur0-cur7 represents bits0 - bits7 of all our channels. Each bit within curX is one channel.
+     * cur0-cur3 represents bits0 - bits7 of all our channels. Each bit within the upper/lower half
+     * of curX is one channel.
      */
     dest[0] = cur0;
     dest[1] = cur1;
     dest[2] = cur2;
     dest[3] = cur3;
-    dest[4] = cur4;
-    dest[5] = cur5;
-    dest[6] = cur6;
-    dest[7] = cur7;
 }
 
 void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_TypeDef *gpio_bank)
@@ -365,7 +372,7 @@ void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_Ty
     /* Pre-fill the DMA buffer, because we won't start filling things on-the-fly until the first
      * half has already been transferred.
      */
-    for (i = 0; i < DMA_BUFFER_SIZE; i+= 8) {
+    for (i = 0; i < DMA_BUFFER_SIZE_WORDS; i+= 4) {
         fill_dma_buffer(dma_buffer + i, pos, strips, num_strips);
         pos++;
     }
@@ -383,7 +390,7 @@ void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_Ty
     }
 
     /* Give DMA time to finish out the current buffer, before turning it off, plus an extra blank pixel (24 bits) */
-    max_length += DMA_BUFFER_SIZE / 8;
+    max_length += DMA_BUFFER_SIZE_WORDS / 4;
 
     /* We're going to use our standard timer to generate the RESET pulse, so for now just run the
      * timer without any DMA.
@@ -414,7 +421,7 @@ void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_Ty
             continue;
         }
 
-        uint16_t *dest = dma_buffer;
+        uint32_t *dest = dma_buffer;
 
         /* Figure out if we're filling the first half of the DMA buffer, or the second half */
         if (DMA1->ISR & DMA_TIM_CH_A_TCIF) {
@@ -424,10 +431,11 @@ void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_Ty
         /* Clear DMA event flags */
         DMA1->IFCR = DMA_TIM_CH_A_ICFR_FLAGS;
 
-        /* Unpack one new byte from each channel, into eight words in our DMA buffer
-         * Each 16-bit word in the DMA buffer contains to one bit of the output byte (from each channel)
+        /* Unpack one new byte from each channel, into eight 16-words in our DMA buffer
+         * The DMA buffer is indexed in 32bit words, and is filled 4 words at a time, which corresponds
+         * to eight 16-bit half-words, which represent eight bits from one byte of each strip's framebuffer.
          */
-        for (i = 0; i < DMA_BUFFER_FILL_SIZE; i+= 8) {
+        for (i = 0; i < DMA_BUFFER_FILL_SIZE; i+= 4) {
             fill_dma_buffer(dest + i, pos, strips, num_strips);
             pos++;
         }
