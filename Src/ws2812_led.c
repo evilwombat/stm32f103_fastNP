@@ -269,28 +269,21 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
  * the cur0 - cur7 variables, corresponding to the GPIO number for that channel.
  * The 'if' statement will be optimized away by the compiler, depending on how many channels
  * are actually defined.
+ * We only care about the lower 8 bits, but it's more efficient to flip all the bits rather
+ * than just trying to XOR in 0xff.
  */
-#define HANDLE_CHANNEL(ch_num, gpio_num)                    \
-    if (ch_num < WS2812_NUM_CHANNELS) {                     \
-        ch_val = get_channel_byte(channels + ch_num, pos);  \
-        UNPACK_CHANNEL(gpio_num);                           \
-    }
+#define HANDLE_CHANNEL(ch_num, gpio_num)                                \
+        ch_val = 0xffffffff;                                            \
+        if (pos < channels[ch_num].length) {                            \
+            ch_val = channels[ch_num].framebuffer[pos] ^ 0xffffffff;    \
+        }                                                               \
+        UNPACK_CHANNEL(gpio_num);
 
-static inline uint8_t get_channel_byte(const struct led_channel_info *channel, int pos)
+static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const struct led_channel_info* channels)
 {
-    /* If all channels are the same length, we can skip the 'pos' range check, and speed up our
-     * inner loop *substantially*
-     */
-
-    if (WS212_ALL_CHANNELS_SAME_LENGTH || (pos < channel->length))
-        return channel->framebuffer[pos] ^ 0xff;
-
-    return 0xff;
-}
-
-static void fill_dma_buffer(uint16_t *dest, int pos, const struct led_channel_info *channels)
-{
-    register uint16_t cur0 = 0, cur1 = 0, cur2 = 0, cur3 = 0, cur4 = 0, cur5 = 0, cur6 = 0, cur7 = 0;
+    // Use 'int' (instead of int16) here, or GCC will waste a lot of instructions on silly sign
+    // extension things, which we don't even need here.
+    register unsigned int cur0 = 0, cur1 = 0, cur2 = 0, cur3 = 0, cur4 = 0, cur5 = 0, cur6 = 0, cur7 = 0;
 
     /* cur0 - cur7 represent eight successive words to be output to the DMA buffer. Each value
      * holds all the nth bits from across each channel. That is, when the unpacking is done,
@@ -318,7 +311,8 @@ static void fill_dma_buffer(uint16_t *dest, int pos, const struct led_channel_in
      *
      * If you want it to be fast, don't expect it to always be pretty.
      */
-    uint8_t ch_val;
+    unsigned int ch_val;
+
     HANDLE_CHANNEL( 0, WS2812_CH0_GPIO);
     HANDLE_CHANNEL( 1, WS2812_CH1_GPIO);
     HANDLE_CHANNEL( 2, WS2812_CH2_GPIO);
@@ -383,13 +377,6 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
 
     /* Give DMA time to finish out the current buffer, before turning it off, plus an extra blank pixel (24 bits) */
     max_length += DMA_BUFFER_SIZE / 8;
-
-    /* If per-channel range checks are enabled, add an extra "dummy" pixel to the end of our data stream.
-     * This must only be done with range checks enabled, or we'll walk off the end of our framebuffers.
-     */
-#if !WS212_ALL_CHANNELS_SAME_LENGTH
-    max_length += 3;
-#endif
 
     /* We're going to use our standard timer to generate the RESET pulse, so for now just run the
      * timer without any DMA.
