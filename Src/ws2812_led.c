@@ -279,7 +279,7 @@ static void ws2812_dma_start(GPIO_TypeDef *gpio_bank)
         }                                                               \
         UNPACK_CHANNEL(gpio_num);
 
-static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const struct led_strip_info* strips)
+static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const struct led_strip_info* strips, const int num_strips)
 {
     // Use 'int' (instead of int16) here, or GCC will waste a lot of instructions on silly sign
     // extension things, which we don't even need here.
@@ -313,22 +313,25 @@ static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const
      */
     unsigned int ch_val;
 
-    HANDLE_CHANNEL( 0, WS2812_CH0_GPIO);
-    HANDLE_CHANNEL( 1, WS2812_CH1_GPIO);
-    HANDLE_CHANNEL( 2, WS2812_CH2_GPIO);
-    HANDLE_CHANNEL( 3, WS2812_CH3_GPIO);
-    HANDLE_CHANNEL( 4, WS2812_CH4_GPIO);
-    HANDLE_CHANNEL( 5, WS2812_CH5_GPIO);
-    HANDLE_CHANNEL( 6, WS2812_CH6_GPIO);
-    HANDLE_CHANNEL( 7, WS2812_CH7_GPIO);
-    HANDLE_CHANNEL( 8, WS2812_CH8_GPIO);
-    HANDLE_CHANNEL( 9, WS2812_CH9_GPIO);
-    HANDLE_CHANNEL(10, WS2812_CH10_GPIO);
-    HANDLE_CHANNEL(11, WS2812_CH11_GPIO);
-    HANDLE_CHANNEL(12, WS2812_CH12_GPIO);
-    HANDLE_CHANNEL(13, WS2812_CH13_GPIO);
-    HANDLE_CHANNEL(14, WS2812_CH14_GPIO);
-    HANDLE_CHANNEL(15, WS2812_CH15_GPIO);
+    // Intentional fall-through
+    switch (num_strips) {
+        case 16: HANDLE_CHANNEL(15, WS2812_CH15_GPIO);
+        case 15: HANDLE_CHANNEL(14, WS2812_CH14_GPIO);
+        case 14: HANDLE_CHANNEL(13, WS2812_CH13_GPIO);
+        case 13: HANDLE_CHANNEL(12, WS2812_CH12_GPIO);
+        case 12: HANDLE_CHANNEL(11, WS2812_CH11_GPIO);
+        case 11: HANDLE_CHANNEL(10, WS2812_CH10_GPIO);
+        case 10: HANDLE_CHANNEL( 9, WS2812_CH9_GPIO);
+        case  9: HANDLE_CHANNEL( 8, WS2812_CH8_GPIO);
+        case  8: HANDLE_CHANNEL( 7, WS2812_CH7_GPIO);
+        case  7: HANDLE_CHANNEL( 6, WS2812_CH6_GPIO);
+        case  6: HANDLE_CHANNEL( 5, WS2812_CH5_GPIO);
+        case  5: HANDLE_CHANNEL( 4, WS2812_CH4_GPIO);
+        case  4: HANDLE_CHANNEL( 3, WS2812_CH3_GPIO);
+        case  3: HANDLE_CHANNEL( 2, WS2812_CH2_GPIO);
+        case  2: HANDLE_CHANNEL( 1, WS2812_CH1_GPIO);
+        case  1: HANDLE_CHANNEL( 0, WS2812_CH0_GPIO);
+    }
 
     /*
      * Store the repacked bits in our DMA buffer, ready to be sent to the GPIO bit-reset register.
@@ -344,11 +347,15 @@ static void __always_inline fill_dma_buffer(uint16_t *dest, const int pos, const
     dest[7] = cur7;
 }
 
-void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank)
+void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_TypeDef *gpio_bank)
 {
     int i;
     int pos = 0;
     int max_length = 0;
+
+    if (num_strips > WS2812_MAX_NUM_STRIPS) {
+        num_strips = WS2812_MAX_NUM_STRIPS;
+    }
 
     /* This is what gets DMAed to the GPIO BSR / BSRR at the start/end of each bit cycle.
      * We will dynamically build this shortly
@@ -359,7 +366,7 @@ void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank
      * half has already been transferred.
      */
     for (i = 0; i < DMA_BUFFER_SIZE; i+= 8) {
-        fill_dma_buffer(dma_buffer + i, pos, strips);
+        fill_dma_buffer(dma_buffer + i, pos, strips, num_strips);
         pos++;
     }
 
@@ -367,7 +374,7 @@ void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank
      * reset bit masks. While we're at it, find the length of the longest framebuffer, in case
      * they're of unequal length. This determines how many total bits we will clock out.
      */
-    for (i = 0; i < WS2812_NUM_STRIPS; i++) {
+    for (i = 0; i < num_strips; i++) {
         if (strips[i].length > max_length)
             max_length = strips[i].length;
 
@@ -410,8 +417,9 @@ void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank
         uint16_t *dest = dma_buffer;
 
         /* Figure out if we're filling the first half of the DMA buffer, or the second half */
-        if (DMA1->ISR & DMA_TIM_CH_A_TCIF)
+        if (DMA1->ISR & DMA_TIM_CH_A_TCIF) {
             dest += DMA_BUFFER_FILL_SIZE;
+        }
 
         /* Clear DMA event flags */
         DMA1->IFCR = DMA_TIM_CH_A_ICFR_FLAGS;
@@ -420,7 +428,7 @@ void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank
          * Each 16-bit word in the DMA buffer contains to one bit of the output byte (from each channel)
          */
         for (i = 0; i < DMA_BUFFER_FILL_SIZE; i+= 8) {
-            fill_dma_buffer(dest + i, pos, strips);
+            fill_dma_buffer(dest + i, pos, strips, num_strips);
             pos++;
         }
 

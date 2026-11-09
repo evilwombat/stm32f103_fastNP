@@ -24,6 +24,9 @@
  */
 #define FRAMEBUFFER_SIZE        256
 
+/* How many LED strips to control, for the demo? */
+#define NUM_STRIPS              16
+
 /* The order of R, G, B is important, because that's the order these get clocked out.
  * The LEDs expect the green channel first, then red, then blue.
  */
@@ -51,11 +54,11 @@ void make_pretty_colors(struct pixel *framebuffer, int strip, int state)
     }
 }
 
-struct pixel framebuffers[WS2812_NUM_STRIPS][FRAMEBUFFER_SIZE];
+struct pixel framebuffers[NUM_STRIPS][FRAMEBUFFER_SIZE];
 
 int demo_main(void)
 {
-    struct led_strip_info led_strips[WS2812_NUM_STRIPS];
+    struct led_strip_info led_strips[NUM_STRIPS];
 
     int strip, animation_state = 0;
 
@@ -68,7 +71,7 @@ int demo_main(void)
      * unequal lengths) without wasting memory. Removing the length check from ws2812_refresh()
      * will improve performance, but we are within spec as-is.
      */
-    for (int i = 0; i < WS2812_NUM_STRIPS; i++) {
+    for (int i = 0; i < NUM_STRIPS; i++) {
         led_strips[i].framebuffer = framebuffers[i];
         led_strips[i].length = FRAMEBUFFER_SIZE * sizeof(struct pixel);
     }
@@ -80,13 +83,13 @@ int demo_main(void)
          * We can trivially send the same framebuffer to each channel, but we won't do that, just
          * to prove that we can truly refresh 16 unique framebuffers at once.
          */
-        for (strip = 0; strip < WS2812_NUM_STRIPS; strip++)
+        for (strip = 0; strip < NUM_STRIPS; strip++)
             make_pretty_colors(framebuffers[strip], strip, animation_state);
 
         animation_state++;
 
         __disable_irq();
-        ws2812_refresh(led_strips, GPIOB);
+        ws2812_refresh(led_strips, NUM_STRIPS, GPIOB);
         __enable_irq();
     }
 

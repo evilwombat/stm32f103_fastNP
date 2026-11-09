@@ -50,8 +50,8 @@ struct led_strip_info {
 #define WS2812_TIMER_PWM_CH_A_TIME (((WS2812_TIMER_FREQ_HZ / 1000) *  40) / 100000)
 #define WS2812_TIMER_PWM_CH_B_TIME (((WS2812_TIMER_FREQ_HZ / 1000) *  80) / 100000)
 
-/* How many channels (strips) of LEDs we want to control. This must not exceed 16. */
-#define WS2812_NUM_STRIPS     16
+/* Maximum number of channels (strips) of LEDs we want to control. This must not exceed 16. */
+#define WS2812_MAX_NUM_STRIPS     16
 
 /*
  * We support up to 16 LED channels (that is, up to 16 distinct strips of LEDs.
@@ -83,4 +83,4 @@ struct led_strip_info {
 /* (These need to be constants at compile-time because they are used in inline ASM) */
 
 void ws2812_init();
-void ws2812_refresh(const struct led_strip_info *strips, GPIO_TypeDef *gpio_bank);
+void ws2812_refresh(const struct led_strip_info *strips, int num_strips, GPIO_TypeDef *gpio_bank);
