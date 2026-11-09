@@ -401,22 +401,6 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
 
     __HAL_TIM_DISABLE(&htimer);
 
-    /* Set all LED GPIOs to 0, to begin reset pulse */
-    gpio_bank->BRR = ws2812_gpio_set_bits;
-
-    __HAL_TIM_ENABLE(&htimer);
-
-    /* We know the timer overflows every 1.25uS (our bit-time interval). So rather than
-     * reprogram the timer for 280uS (reset pulse duration) and back, we're gonna be lazy
-     * and just count out ~225 update intervals
-     */
-    for (i = 0; i < 225; i++) {
-        while (!__HAL_TIM_GET_FLAG(&htimer, TIM_FLAG_UPDATE));
-        __HAL_TIM_CLEAR_FLAG(&htimer, TIM_FLAG_UPDATE);
-    }
-
-    /* Now that we're done with the RESET pulse, turn off the timer and prepare the DMA stuff */
-    __HAL_TIM_DISABLE(&htimer);
     ws2812_dma_start(gpio_bank);
 
     /* We set the timer to juuust before the overflow condition, so that the UPDATE event happens
@@ -467,6 +451,20 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
 	__HAL_DMA_DISABLE(&hdma_tim_update);
 	__HAL_DMA_DISABLE(&hdma_tim_pwm_ch_a);
 	__HAL_DMA_DISABLE(&hdma_tim_pwm_ch_b);
+
+    __HAL_TIM_ENABLE(&htimer);
+
+    /* We know the timer overflows every 1.25uS (our bit-time interval). So rather than
+     * reprogram the timer for 280uS (reset pulse duration) and back, we're gonna be lazy
+     * and just count out ~225 update intervals
+     */
+    for (i = 0; i < 225; i++) {
+        while (!__HAL_TIM_GET_FLAG(&htimer, TIM_FLAG_UPDATE));
+        __HAL_TIM_CLEAR_FLAG(&htimer, TIM_FLAG_UPDATE);
+    }
+
+    /* Now that we're done with the RESET pulse, turn the timer back off */
+    __HAL_TIM_DISABLE(&htimer);
 }
 
 void ws2812_init()
