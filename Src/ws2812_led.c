@@ -352,7 +352,6 @@ static void fill_dma_buffer(uint16_t *dest, int pos, const struct led_channel_in
 
 void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_bank)
 {
-    int cycles = 0;
     int i;
     int pos = 0;
     int max_length = 0;
@@ -418,7 +417,6 @@ void ws2812_refresh(const struct led_channel_info *channels, GPIO_TypeDef *gpio_
     while(1) {
         /* Wait for DMA full-transfer or half-transfer event. This tells us when to fill the next buffer */
         if (!(DMA1->ISR & (DMA_TIM_CH_A_TCIF | DMA_TIM_CH_A_HTIF))) {
-            cycles++;
             continue;
         }
 
